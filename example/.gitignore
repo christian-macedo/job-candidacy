@@ -1,0 +1,6 @@
+# In a real project these lines live in the project root. They are here so the example
+# carries the same protection it recommends.
+profile/sources/*
+!profile/sources/.gitkeep
+node_modules/
+.DS_Store

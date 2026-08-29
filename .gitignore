@@ -1,0 +1,6 @@
+node_modules/
+.DS_Store
+
+# A contributor's own career record must never land in this repository.
+/profile/
+/applications/
