@@ -1,0 +1,15 @@
+{
+  "name": "job-candidacy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scripts for the job-candidacy Claude Code plugin: resume rendering and application verification.",
+  "license": "MIT",
+  "scripts": {
+    "verify": "node skills/application-verify/scripts/verify.mjs",
+    "render": "node skills/resume-tailor/scripts/render_pdf.mjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.10.0"
+  }
+}

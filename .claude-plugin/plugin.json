@@ -1,0 +1,10 @@
+{
+  "name": "job-candidacy",
+  "displayName": "Job Candidacy",
+  "version": "1.0.0",
+  "description": "Tailor resumes and cover letters from one canonical career record, then prep and debrief a three-round interview loop. Every claim cites an evidence atom, and a checker enforces it.",
+  "author": { "name": "christian-macedo", "url": "https://github.com/christian-macedo" },
+  "repository": "https://github.com/christian-macedo/job-candidacy",
+  "license": "MIT",
+  "keywords": ["resume", "cover-letter", "job-search", "interview-prep", "ats", "pdf"]
+}
