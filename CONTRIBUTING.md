@@ -10,6 +10,33 @@ Helios Data as the employer being applied to. Atom IDs are `NWL-*`, `CW-*` and `
 If you are using this plugin for your own job hunt, your `profile/` and `applications/` live in a
 different, private repository. Do not open a pull request from it.
 
+### How CI enforces it
+
+The `No real personal data` job in `.github/workflows/verify.yml` has two halves.
+
+**Structural checks**, which name nobody and therefore live in the open: any email address that is
+not `@example.com`/`.org`/`.net` or the GitHub `users.noreply.github.com` form, and any
+NANP-shaped phone number. The persona's `+1 555-0142` is deliberately not a real number shape and
+does not trip it. Binary files are skipped, so the fixture's rendered PDFs are checked through the
+markdown they come from.
+
+**An identity check**, driven by the `IDENTITY_PATTERN` repository secret: an extended-regex
+alternation of the maintainer's own names, employers, former teams and the companies they are
+applying to. **That list is not written in this repository, and must not be.** A public file
+enumerating one person's employers and live applications is precisely the personal data this rule
+exists to keep out. Keeping it in a secret means the check can name real things without publishing
+them.
+
+Consequences worth knowing:
+
+- **Fork pull requests cannot read the secret.** The structural checks still run and the job
+  passes with a notice. A maintainer gets the full check when the branch runs in this repository,
+  so **review a fork's diff for real data by eye before merging**.
+- **On any non-fork run, a missing `IDENTITY_PATTERN` fails the job** rather than passing quietly.
+  A check that silently becomes a no-op is worse than no check.
+- To run the identity half locally, export your own pattern first:
+  `IDENTITY_PATTERN='\b(name|employer)\b' bash -c '...'`. The structural half needs nothing.
+
 ## Before you push
 
 ```bash
