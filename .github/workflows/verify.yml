@@ -24,15 +24,54 @@ jobs:
       # scope on purpose: they carry the maintainer's own handle, which is the one
       # place a real name belongs. "Microsoft Edge.app" is a browser path in
       # render_pdf.mjs's Chrome discovery list, and is the only allowed match here.
+      #
+      # The identity terms are deliberately NOT written in this file. It is public,
+      # and a list of one maintainer's employers, former teams and live applications
+      # is exactly the kind of personal data this check exists to keep out of the
+      # repository. The terms live in the IDENTITY_PATTERN repository secret, as an
+      # extended-regex alternation. The structural checks need no secret, so they
+      # still run on pull requests from forks, where secrets are unavailable.
       - name: No real personal data
+        env:
+          IDENTITY_PATTERN: ${{ secrets.IDENTITY_PATTERN }}
+          IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
-          if grep -rniE '\b(christian|macedo|xtian|MSFT|Xbox|Redmond|La Salle|Logic20|PGCgroup|Datadog|Wallapop|Betsson|Expedia|Frontiers|Moove|Pleo|OrgStore)\b|Microsoft' \
-               skills commands reference example AGENTS.md CONTRIBUTING.md \
-             | grep -v 'Microsoft Edge.app'; then
-            echo "::error::Real personal data found. See CONTRIBUTING.md."
-            exit 1
+          SCOPE="skills commands reference example AGENTS.md CONTRIBUTING.md"
+          status=0
+
+          # 1. Structural checks. These name nobody, so they are safe in the open.
+          #    Allowed: the fictional persona's example.com addresses, and the
+          #    GitHub noreply form, which is the correct address for a commit.
+          # -I skips binary files: the fixture's PDFs are rendered from the
+          # fictional markdown in the same tree, which is what actually gets checked.
+          if grep -rIniE '[[:alnum:]._%+-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}' $SCOPE \
+             | grep -viE '@(example\.(com|org|net)|users\.noreply\.github\.com)\b'; then
+            echo "::error::A real-looking email address appears above. See CONTRIBUTING.md."
+            status=1
           fi
-          echo "clean"
+
+          # A real NANP-style number. The persona's +1 555-0142 is 3-4 and does not match.
+          if grep -rIniE '(\+[0-9]{1,3}[ .-]?)?\(?[0-9]{3}\)?[ .-][0-9]{3}[ .-][0-9]{4}' $SCOPE; then
+            echo "::error::A real-looking phone number appears above. See CONTRIBUTING.md."
+            status=1
+          fi
+
+          # 2. The identity terms, only where the secret is readable.
+          if [ -n "${IDENTITY_PATTERN:-}" ]; then
+            if grep -rniE "${IDENTITY_PATTERN}" $SCOPE | grep -v 'Microsoft Edge.app'; then
+              echo "::error::Real personal data found. See CONTRIBUTING.md."
+              status=1
+            fi
+            echo "identity pattern applied"
+          elif [ "${IS_FORK_PR}" = "true" ]; then
+            echo "::notice::IDENTITY_PATTERN is not readable on a fork pull request. Structural checks ran; a maintainer re-runs the full check on merge."
+          else
+            echo "::error::IDENTITY_PATTERN is not set on this repository. Set it before relying on this job. See CONTRIBUTING.md."
+            status=1
+          fi
+
+          if [ "$status" -eq 0 ]; then echo "clean"; fi
+          exit $status
 
       # Distribution lives in the tousledmonkey marketplace, a separate repository.
       # A marketplace.json appearing here would mean the plugin is offered under two
