@@ -20,6 +20,10 @@ jobs:
         working-directory: example
         run: node ../skills/application-verify/scripts/verify.mjs --all
 
+      # Cases the worked example does not carry, built in a temporary copy of it.
+      - name: Checker regression tests
+        run: node --test skills/application-verify/scripts/verify.test.mjs
+
       # The one rule that is not negotiable. README and the manifests are out of
       # scope on purpose: they carry the maintainer's own handle, which is the one
       # place a real name belongs. "Microsoft Edge.app" is a browser path in

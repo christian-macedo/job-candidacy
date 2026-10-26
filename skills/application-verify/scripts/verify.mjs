@@ -511,14 +511,15 @@ async function numbersOfFile(p) {
 
 /**
  * Round files are named `<n>-<name>.md`, with the debrief as `<n>-<name>-debrief.md`.
+ * A round can hold several of each: a final loop split into `5-system-design.md`
+ * and `5-leadership.md` has a debrief per session. Both lists keep every file.
  */
 function readRoundDir(names) {
-  const preps = [], debriefs = new Map();
+  const preps = [], debriefs = [];
   for (const f of names.filter((n) => n.endsWith(".md")).sort()) {
     const m = f.match(/^(\d+)-(.+?)(-debrief)?\.md$/);
     if (!m) continue;
-    if (m[3]) debriefs.set(Number(m[1]), f);
-    else preps.push({ n: Number(m[1]), name: m[2], file: f });
+    (m[3] ? debriefs : preps).push({ n: Number(m[1]), name: m[2], file: f });
   }
   return { preps, debriefs };
 }
@@ -530,9 +531,10 @@ function readRoundDir(names) {
  * file looks finished either way, which is exactly why it needs a check.
  */
 function checkRoundOrder(slug, preps, debriefs) {
+  const debriefed = new Set(debriefs.map((d) => d.n));
   for (const p of preps) {
     for (const earlier of preps.filter((x) => x.n < p.n)) {
-      if (!debriefs.has(earlier.n)) {
+      if (!debriefed.has(earlier.n)) {
         fail("round-order", `${slug}/interviews/${p.file}`, null,
           `Round ${p.n} is prepped but round ${earlier.n} has no debrief. ` +
           `Run /debrief before prepping the next round.`);
@@ -702,7 +704,7 @@ async function checkInterviews(slug, dir, profile, indexMd) {
   if (!existsSync(interviews)) return;
 
   const { preps, debriefs } = readRoundDir(await readdir(interviews));
-  if (!preps.length && !debriefs.size) return;
+  if (!preps.length && !debriefs.length) return;
 
   checkRoundOrder(slug, preps, debriefs);
 
@@ -715,15 +717,15 @@ async function checkInterviews(slug, dir, profile, indexMd) {
     path.join(dir, "resume.md"), path.join(dir, "cover-letter.md"),
     path.join(dir, "analysis.md"), path.join(dir, "match.md"),
     ...sentDirs.map((d) => path.join(sent, d, "NOTES.md")),
-    ...[...debriefs.values()].map((f) => path.join(interviews, f)),
+    ...debriefs.map((d) => path.join(interviews, d.file)),
   ];
   for (const src of sources) for (const n of await numbersOfFile(src)) pool.add(n);
 
-  const debriefFiles = [...debriefs.values()].sort();
+  const debriefFiles = debriefs.map((d) => d.file).sort();
   for (const prep of preps) {
     // A prep file only owes provenance for debriefs that existed when it was
     // written, which is every debrief for a round before its own.
-    const priors = [...debriefs.entries()].filter(([n]) => n < prep.n).map(([, f]) => f).sort();
+    const priors = debriefs.filter((d) => d.n < prep.n).map((d) => d.file).sort();
     await checkPrep(slug, interviews, prep, priors, profile, pool);
   }
   for (const f of debriefFiles) await checkDebrief(slug, interviews, f);
