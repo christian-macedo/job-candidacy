@@ -89,3 +89,42 @@ jobs:
             exit 1
           fi
           echo "no marketplace.json, as intended"
+
+      # verify-project.yml defaults to checking with the released tag, so a release that
+      # forgets to bump it would have every project checked with the previous version.
+      - name: Reusable workflow defaults to this version
+        run: |
+          want="job-candidacy--v$(node -p "require('./.claude-plugin/plugin.json').version")"
+          got=$(grep -E '^\s+default: job-candidacy--v' .github/workflows/verify-project.yml | awk '{print $2}')
+          if [ "$got" != "$want" ]; then
+            echo "::error::verify-project.yml defaults plugin-ref to '$got'; plugin.json says '$want'."
+            exit 1
+          fi
+          echo "$got"
+
+      # Projects run this in CI, where the log is readable by anyone with access to the
+      # repository. Seed the example with a private address, a phone number and a URL,
+      # then require the FAIL to fire and none of the three to be printed.
+      - name: Redaction keeps contact details out of the log
+        run: |
+          tmp=$(mktemp -d); cp -R example/. "$tmp"
+          resume=$(ls "$tmp"/applications/*/resume.md | head -1)
+          sed -i '2s|$| · robin.private@mail.test · +351 912 345 678 · https://robin.test/cv|' "$resume"
+          set +e
+          (cd "$tmp" && node "$GITHUB_WORKSPACE/skills/application-verify/scripts/verify.mjs" --all --redact) > out.txt
+          code=$?
+          set -e
+          cat out.txt
+          [ "$code" -eq 1 ] || { echo "::error::expected exit 1 on a contact FAIL, got $code"; exit 1; }
+          grep -q '\[contact\]' out.txt || { echo "::error::contact check did not fire"; exit 1; }
+          if grep -nE 'robin\.private|912 345|robin\.test' out.txt; then
+            echo "::error::seeded contact details reached the log"; exit 1
+          fi
+          echo "redacted"
+
+  # The reusable workflow, run exactly as a project would call it, against the example.
+  reusable-workflow:
+    uses: ./.github/workflows/verify-project.yml
+    with:
+      plugin-ref: ${{ github.sha }}
+      working-directory: example

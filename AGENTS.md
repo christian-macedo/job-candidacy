@@ -87,7 +87,10 @@ catches and why, and a case in `example/` that exercises it.
 
 ## Releasing
 
-Bump `version` in `plugin.json`, then in this repository:
+Bump `version` in `plugin.json`, and the `plugin-ref` default in
+`.github/workflows/verify-project.yml` to match (CI fails if they disagree). That file is the
+reusable workflow projects call to run `verify.mjs` on their pull requests, so it is public
+interface: keep its inputs backward compatible. Then in this repository:
 
 ```bash
 claude plugin tag --push

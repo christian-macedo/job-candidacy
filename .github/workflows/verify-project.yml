@@ -1,0 +1,61 @@
+name: verify project
+
+# Reusable workflow: runs verify.mjs --all against the repository that calls it, which is
+# a job-candidacy project (profile/ and applications/ at its root), not this plugin.
+#
+#   jobs:
+#     verify:
+#       uses: christian-macedo/job-candidacy/.github/workflows/verify-project.yml@job-candidacy--v1.1.0
+#
+# Pin the @ref to the plugin version the project enables, so CI checks with the same
+# rules the skills write by. Any FAIL fails the job; warnings are printed and nothing more.
+#
+# The caller's data never leaves its own runner: this workflow only reads it. Output is
+# redacted (email addresses, phone numbers, URLs), because the `contact` check exists
+# to catch a private address, and printing it into a log would defeat the point.
+# Nothing here needs profile/sources/, which stays local and gitignored.
+
+on:
+  workflow_call:
+    inputs:
+      plugin-ref:
+        description: Ref of job-candidacy to check with. Leave it to match the @ref the caller pins.
+        type: string
+        # Bumped with plugin.json on every release; the plugin's own CI enforces that.
+        default: job-candidacy--v1.1.0
+      working-directory:
+        description: Project root, relative to the caller's repository root.
+        type: string
+        default: .
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify.mjs --all
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@v4
+        with:
+          path: project
+          persist-credentials: false
+
+      - name: Check out job-candidacy
+        uses: actions/checkout@v4
+        with:
+          repository: christian-macedo/job-candidacy
+          ref: ${{ inputs.plugin-ref }}
+          path: job-candidacy
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # verify.mjs resolves the project from the working directory. Exit 1 on any FAIL,
+      # 0 with warnings only, 2 when the directory is not a project.
+      - name: verify.mjs --all
+        working-directory: project/${{ inputs.working-directory }}
+        run: node "$GITHUB_WORKSPACE/job-candidacy/skills/application-verify/scripts/verify.mjs" --all --redact
