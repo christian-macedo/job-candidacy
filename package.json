@@ -7,7 +7,8 @@
   "license": "MIT",
   "scripts": {
     "verify": "node skills/application-verify/scripts/verify.mjs",
-    "render": "node skills/resume-tailor/scripts/render_pdf.mjs"
+    "render": "node skills/resume-tailor/scripts/render_pdf.mjs",
+    "test": "node --test skills/application-verify/scripts/verify.test.mjs"
   },
   "dependencies": {
     "puppeteer-core": "^24.10.0"

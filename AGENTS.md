@@ -38,8 +38,14 @@ address and phone number were sitting in a skill example when it happened.
 cd example && node ../skills/application-verify/scripts/verify.mjs --all
 ```
 
-Must print `All checks passed.` CI runs exactly this, plus a scrub gate over
-`skills commands reference example`.
+Must print `All checks passed.` CI runs exactly this, the checker's regression tests, and a
+scrub gate over `skills commands reference example`.
+
+If you touched `verify.mjs`:
+
+```bash
+node --test skills/application-verify/scripts/verify.test.mjs
+```
 
 If you touched the renderer, the resume grammar, or the example documents:
 
