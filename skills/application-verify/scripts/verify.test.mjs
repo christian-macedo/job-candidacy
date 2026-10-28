@@ -101,3 +101,32 @@ test("same-numbered prep files are each checked", async () => {
     assert.match(found[0].file, /2-product-program\.md$/);
   });
 });
+
+// A loop prepped one session at a time: the second session's prep lists the
+// first session's debrief, which shares its round number.
+test("a same-round debrief may be listed, and is not required", async () => {
+  await withProject({
+    "2-hiring-manager-debrief.md": (await secondRoundOneDebrief())
+      .replace("round 1: Follow-up call", "round 2: Hiring manager"),
+    "2-product-program.md": prep(["1-screen-debrief.md", "2-hiring-manager-debrief.md"]),
+    "2-hiring-manager.md": prep(["1-screen-debrief.md"]),
+  }, async (root) => {
+    const found = run(root).filter((f) => f.check === "prep-debriefs");
+    assert.deepEqual(found, []);
+  });
+});
+
+test("a later-round debrief listed in a prep fails with its own message", async () => {
+  await withProject({
+    "2-hiring-manager-debrief.md": (await secondRoundOneDebrief())
+      .replace("round 1: Follow-up call", "round 2: Hiring manager"),
+    "2-hiring-manager.md": prep(["1-screen-debrief.md"]),
+  }, async (root) => {
+    const screen = path.join(root, "applications", SLUG, "interviews", "1-screen.md");
+    const md = await readFile(screen, "utf8");
+    await writeFile(screen, md.replace(/<!-- evidence\n/, "<!-- evidence\ndebrief: 2-hiring-manager-debrief.md\n"));
+    const found = run(root).filter((f) => f.check === "prep-debriefs");
+    assert.equal(found.length, 1);
+    assert.match(found[0].message, /is from a later round/);
+  });
+});

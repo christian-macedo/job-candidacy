@@ -114,7 +114,7 @@ most-rehearsed answer usually lives.
 | `prep-quotes` | FAIL | A section containing a blockquote with no citation and no `no-atom` declaration. Anything written to be spoken must be attributable. |
 | `prep-numbers` | warn | A magnitude inside a blockquote that appears in no cited atom, no debrief, and nothing that was sent. |
 | `boundary` | FAIL | A term declared a boundary for the round that the file never actually states. |
-| `prep-debriefs` | FAIL | A debrief for an earlier round that the prep's `debrief:` key does not list, or a listed file that does not exist. A round split into sessions (`5-system-design-debrief.md`, `5-leadership-debrief.md`) owes every one of them. |
+| `prep-debriefs` | FAIL | A debrief for an earlier round that the prep's `debrief:` key does not list, a listed file that does not exist, or a listed debrief from a later round. A round split into sessions (`5-system-design-debrief.md`, `5-leadership-debrief.md`) owes every one of them. Debriefs from the prep's own round may be listed (a loop prepped one session at a time reads the sessions already held) but are not required. |
 | `round-order` | FAIL | A prep file for round N+1 when round N has no debrief. |
 
 **`prep-numbers` checks blockquotes only**, and that restriction is the whole reason it is

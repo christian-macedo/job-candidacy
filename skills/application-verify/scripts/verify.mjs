@@ -543,7 +543,8 @@ function checkRoundOrder(slug, preps, debriefs) {
   }
 }
 
-async function checkPrep(slug, dir, prep, debriefFiles, profile, pool) {
+async function checkPrep(slug, dir, prep, rounds, profile, pool) {
+  const debriefFiles = rounds.earlier;
   const file = `${slug}/interviews/${prep.file}`;
   const md = await readFile(path.join(dir, prep.file), "utf8");
   const doc = parseRoundDoc(md);
@@ -625,10 +626,14 @@ async function checkPrep(slug, dir, prep, debriefFiles, profile, pool) {
         `Prep reads every debrief before it is written.`);
     }
   }
+  // A debrief from the prep's own round may be listed but is not owed: in a loop
+  // prepped one session at a time, an earlier session's debrief is real reading
+  // for the next session's prep. Listing it is provenance, not an error.
   for (const d of listed) {
-    if (!debriefFiles.includes(d)) {
-      fail("prep-debriefs", file, null, `\`debrief: ${d}\` names a file that does not exist.`);
-    }
+    if (debriefFiles.includes(d) || rounds.same.includes(d)) continue;
+    fail("prep-debriefs", file, null, rounds.later.includes(d)
+      ? `\`debrief: ${d}\` is from a later round than this prep, which cannot have read it.`
+      : `\`debrief: ${d}\` names a file that does not exist.`);
   }
 
   // Blockquotes only. Bullets in a prep file are notes to self ("two sentences",
@@ -725,8 +730,14 @@ async function checkInterviews(slug, dir, profile, indexMd) {
   for (const prep of preps) {
     // A prep file only owes provenance for debriefs that existed when it was
     // written, which is every debrief for a round before its own.
-    const priors = debriefs.filter((d) => d.n < prep.n).map((d) => d.file).sort();
-    await checkPrep(slug, interviews, prep, priors, profile, pool);
+    // Debriefs from its own round may be listed too, and are not required.
+    const files = (keep) => debriefs.filter(keep).map((d) => d.file).sort();
+    const rounds = {
+      earlier: files((d) => d.n < prep.n),
+      same: files((d) => d.n === prep.n),
+      later: files((d) => d.n > prep.n),
+    };
+    await checkPrep(slug, interviews, prep, rounds, profile, pool);
   }
   for (const f of debriefFiles) await checkDebrief(slug, interviews, f);
 
