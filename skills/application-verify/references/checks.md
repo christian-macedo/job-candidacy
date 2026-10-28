@@ -26,7 +26,7 @@ are bad.
 | `structure` | FAIL | Missing `# Name` or contact line. The document does not parse as a resume. |
 | `em-dash` | FAIL | Em dashes anywhere. Recruiters read them as an AI tell. Rewrite the sentence; do not swap the character. |
 | `sections` | warn | A heading outside the set ATS parsers match on. "Where I've Made an Impact" matches nothing. |
-| `contact` | FAIL | Any email address other than the publishable one from the profile. The personal address must never reach a recruiter. |
+| `contact` | FAIL | Any email address other than the publishable one from the profile, with the line it is on. The personal address must never reach a recruiter. |
 
 ## Evidence
 
@@ -176,3 +176,19 @@ another), but it is unnecessary: every resume is checked against the profile, an
 is the shared reference. Consistency between applications follows from fidelity to the same
 source. A check comparing applications to each other would only fire where `numbers` already
 fires, with worse messages.
+
+## Output in CI
+
+`--redact` replaces email addresses, phone numbers and URLs in every message and quoted line
+with `[email]`, `[phone]` and `[url]`. It is on by default whenever `GITHUB_ACTIONS` is set,
+because a CI log is read by people the documents were never sent to, and the one finding most
+likely to quote a private address is `contact`, whose whole job is to catch it. File and line
+are kept, so a redacted finding can still be found.
+
+Over-masking is the intended direction: a year range such as `2019-2023` can come out as
+`[phone]`. Names and the rest of the document text are not masked; the findings are about that
+text.
+
+A project runs this in CI through the reusable workflow `.github/workflows/verify-project.yml`;
+see the README. The exit code is the contract: 1 on any FAIL, 0 with warnings only, 2 when the
+working directory is not a project.

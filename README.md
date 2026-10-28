@@ -159,6 +159,27 @@ holds LinkedIn exports, which contain *other people's* personal data.
 Keep that project private and separate from this one. Never open a pull request here from a
 repository that contains it.
 
+### Checking your project in CI
+
+To run the checker on every pull request to your project, add one file to it,
+`.github/workflows/verify.yml`:
+
+```yaml
+name: verify
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    uses: christian-macedo/job-candidacy/.github/workflows/verify-project.yml@job-candidacy--v1.1.0
+```
+
+Pin the `@` ref to the plugin version your project enables. Any FAIL fails the check; warnings
+are printed only. Email addresses, phone numbers and URLs are masked in the log, and nothing in
+`profile/sources/` is needed. This repository is public, so a private project needs no token to
+call it.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: examples use the fictional persona,

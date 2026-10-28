@@ -2,8 +2,12 @@
 /**
  * Deterministic checks on a tailored application.
  *
- *   node verify.mjs <slug|applications/slug> [--json] [--quiet]
- *   node verify.mjs --all
+ *   node verify.mjs <slug|applications/slug> [--json] [--quiet] [--redact]
+ *   node verify.mjs --all [--redact]
+ *
+ * --redact masks email addresses, phone numbers and URLs in everything printed. It is
+ * on by default under GitHub Actions, where the output lands in a log other people can
+ * read; the `contact` check exists precisely because one of those addresses is private.
  *
  * Everything in here is decidable from the files alone: an ID exists or it does
  * not, a number appears in a cited atom or it does not. Anything needing a reader
@@ -279,13 +283,19 @@ function checkStructure(doc, md, file, isLetter) {
 }
 
 function checkContact(doc, md, file, profile) {
-  const found = new Set(md.replace(/<!--[\s\S]*?-->/g, "").match(/[\w.+-]+@[\w.-]+\.\w+/g) ?? []);
-  for (const email of found) {
-    if (email !== profile.publishableEmail) {
-      fail("contact", file, null,
+  // Comments are blanked rather than removed, so line numbers still point into the file.
+  // The line matters: under --redact the address itself is masked, and the line is then
+  // the only way to find it.
+  const body = md.replace(/<!--[\s\S]*?-->/g, (c) => c.replace(/[^\n]/g, ""));
+  const seen = new Set();
+  body.split(/\r?\n/).forEach((line, i) => {
+    for (const email of line.match(/[\w.+-]+@[\w.-]+\.\w+/g) ?? []) {
+      if (email === profile.publishableEmail || seen.has(email)) continue;
+      seen.add(email);
+      fail("contact", file, i + 1,
         `Document contains \`${email}\`; the publishable address is \`${profile.publishableEmail}\`.`);
     }
-  }
+  });
 }
 
 function checkAtomsExist(ev, file, profile) {
@@ -808,7 +818,33 @@ async function verifySlug(slug, profile, indexMd) {
   return cited;
 }
 
-function report(json, quiet) {
+/**
+ * Contact details, masked. Over-matching is the safe direction: a long numeral masked
+ * as a phone number costs a reader a moment, a real number printed into a CI log
+ * cannot be taken back. Names and document text are not masked; the findings are
+ * about that text, and the log is only as readable as the repository it runs in.
+ */
+function redact(text) {
+  if (text == null) return text;
+  return String(text)
+    .replace(/[\w.+-]+@[\w.-]+\.\w+/g, "[email]")
+    .replace(/\b(?:https?:\/\/|www\.)\S+/gi, "[url]")
+    .replace(/\b(?:[\w-]+\.)*(?:linkedin|github|gitlab|twitter|x|medium|substack)\.com\/\S*/gi, "[url]")
+    // Seven digits is a local number without its area code. A year range such as
+    // 2019-2023 also qualifies and gets masked; that is the price of the safe direction.
+    .replace(/\+?\(?\d[\d\s().-]{5,}\d/g, (m) => {
+      const digits = m.replace(/\D/g, "").length;
+      return digits >= 7 && digits <= 15 && /[\s().+-]/.test(m) ? "[phone]" : m;
+    });
+}
+
+function report(json, quiet, masked) {
+  if (masked) {
+    for (const f of findings) {
+      f.message = redact(f.message);
+      f.detail = redact(f.detail);
+    }
+  }
   const fails = findings.filter((f) => f.severity === "fail");
   const warns = findings.filter((f) => f.severity === "warn");
 
@@ -840,10 +876,11 @@ async function main() {
   const json = argv.includes("--json");
   const quiet = argv.includes("--quiet");
   const all = argv.includes("--all");
+  const masked = argv.includes("--redact") || process.env.GITHUB_ACTIONS === "true";
   const target = argv.find((a) => !a.startsWith("--"));
 
   if (!all && !target) {
-    console.log("usage: verify.mjs <slug> [--json] [--quiet]  |  verify.mjs --all");
+    console.log("usage: verify.mjs <slug> [--json] [--quiet] [--redact]  |  verify.mjs --all [--redact]");
     process.exit(1);
   }
 
@@ -876,7 +913,7 @@ async function main() {
     for (const id of await verifySlug(slug, profile, indexMd)) cited.add(id);
   }
 
-  const exit = report(json, quiet);
+  const exit = report(json, quiet, masked);
 
   // Atoms nobody has ever used are not a defect, but they are the cheapest
   // signal available about where the profile is carrying dead weight or where
